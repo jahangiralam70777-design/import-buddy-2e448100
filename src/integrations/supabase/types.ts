@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          created_at: string
+          device: string | null
+          element_id: string | null
+          element_label: string | null
+          element_role: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          module: string | null
+          page_path: string | null
+          page_url: string | null
+          referrer: string | null
+          target_id: string | null
+          target_kind: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          element_id?: string | null
+          element_label?: string | null
+          element_role?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          module?: string | null
+          page_path?: string | null
+          page_url?: string | null
+          referrer?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          element_id?: string | null
+          element_label?: string | null
+          element_role?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          module?: string | null
+          page_path?: string | null
+          page_url?: string | null
+          referrer?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       attempt_answers: {
         Row: {
           attempt_id: string
@@ -1554,6 +1611,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_activity_overview: {
+        Args: { _range_hours?: number }
+        Returns: Json
+      }
+      admin_activity_timeseries: {
+        Args: { _bucket_minutes?: number; _range_hours?: number }
+        Returns: {
+          bucket: string
+          event_count: number
+          event_type: string
+        }[]
+      }
       admin_get_db_size: { Args: never; Returns: number }
       admin_get_table_sizes: {
         Args: never
@@ -1566,6 +1635,31 @@ export type Database = {
       admin_hard_delete_user: { Args: { _id: string }; Returns: undefined }
       admin_restore_user: { Args: { _id: string }; Returns: undefined }
       admin_soft_delete_user: { Args: { _id: string }; Returns: undefined }
+      admin_top_buttons: {
+        Args: { _limit?: number; _range_hours?: number }
+        Returns: {
+          click_count: number
+          element_id: string
+          element_label: string
+          page_path: string
+        }[]
+      }
+      admin_top_modules: {
+        Args: { _limit?: number; _range_hours?: number }
+        Returns: {
+          event_count: number
+          module: string
+          unique_users: number
+        }[]
+      }
+      admin_top_pages: {
+        Args: { _limit?: number; _range_hours?: number }
+        Returns: {
+          page_path: string
+          unique_users: number
+          view_count: number
+        }[]
+      }
       admin_top_users: {
         Args: { _limit?: number; _order?: string }
         Returns: {
@@ -1573,6 +1667,19 @@ export type Database = {
           last_login_at: string
           total_login_count: number
           total_usage_seconds: number
+          user_id: string
+        }[]
+      }
+      admin_user_activity: {
+        Args: { _limit?: number; _user_id: string }
+        Returns: {
+          created_at: string
+          element_label: string
+          event_type: string
+          id: string
+          metadata: Json
+          module: string
+          page_path: string
           user_id: string
         }[]
       }
