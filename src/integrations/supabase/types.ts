@@ -636,9 +636,10 @@ export type Database = {
           id: string
           option_a: string
           option_b: string
-          option_c: string
-          option_d: string
+          option_c: string | null
+          option_d: string | null
           question: string
+          question_type: string
           status: Database["public"]["Enums"]["content_status"]
           tags: string[]
           updated_at: string
@@ -653,9 +654,10 @@ export type Database = {
           id?: string
           option_a: string
           option_b: string
-          option_c: string
-          option_d: string
+          option_c?: string | null
+          option_d?: string | null
           question: string
+          question_type?: string
           status?: Database["public"]["Enums"]["content_status"]
           tags?: string[]
           updated_at?: string
@@ -670,9 +672,10 @@ export type Database = {
           id?: string
           option_a?: string
           option_b?: string
-          option_c?: string
-          option_d?: string
+          option_c?: string | null
+          option_d?: string | null
           question?: string
+          question_type?: string
           status?: Database["public"]["Enums"]["content_status"]
           tags?: string[]
           updated_at?: string
@@ -1052,6 +1055,8 @@ export type Database = {
       quiz_sessions: {
         Row: {
           answers: Json
+          approved_at: string | null
+          approved_by: string | null
           chapter_id: string | null
           correct_count: number | null
           created_at: string
@@ -1060,6 +1065,7 @@ export type Database = {
           level: string | null
           mcq_ids: string[]
           question_count: number
+          reject_reason: string | null
           score: number | null
           started_at: string | null
           status: string
@@ -1071,6 +1077,8 @@ export type Database = {
         }
         Insert: {
           answers?: Json
+          approved_at?: string | null
+          approved_by?: string | null
           chapter_id?: string | null
           correct_count?: number | null
           created_at?: string
@@ -1079,6 +1087,7 @@ export type Database = {
           level?: string | null
           mcq_ids?: string[]
           question_count?: number
+          reject_reason?: string | null
           score?: number | null
           started_at?: string | null
           status?: string
@@ -1090,6 +1099,8 @@ export type Database = {
         }
         Update: {
           answers?: Json
+          approved_at?: string | null
+          approved_by?: string | null
           chapter_id?: string | null
           correct_count?: number | null
           created_at?: string
@@ -1098,6 +1109,7 @@ export type Database = {
           level?: string | null
           mcq_ids?: string[]
           question_count?: number
+          reject_reason?: string | null
           score?: number | null
           started_at?: string | null
           status?: string
@@ -1136,7 +1148,7 @@ export type Database = {
           id: string
           is_public: boolean
           kind: string
-          level: string
+          level: string | null
           negative_marking: number
           passing_marks: number
           randomize_options: boolean
@@ -1159,7 +1171,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           kind?: string
-          level?: string
+          level?: string | null
           negative_marking?: number
           passing_marks?: number
           randomize_options?: boolean
@@ -1182,7 +1194,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           kind?: string
-          level?: string
+          level?: string | null
           negative_marking?: number
           passing_marks?: number
           randomize_options?: boolean
@@ -1322,6 +1334,86 @@ export type Database = {
         }
         Relationships: []
       }
+      site_page_sections: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          kind: string
+          page_id: string
+          sort_order: number
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          kind: string
+          page_id: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          page_id?: string
+          sort_order?: number
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_page_sections_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "site_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_pages: {
+        Row: {
+          created_at: string
+          id: string
+          is_home: boolean
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_home?: boolean
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_home?: boolean
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           created_at: string
@@ -1355,13 +1447,58 @@ export type Database = {
         }
         Relationships: []
       }
+      study_sessions: {
+        Row: {
+          chapter_id: string | null
+          created_at: string
+          duration_seconds: number
+          ended_at: string | null
+          id: string
+          last_heartbeat_at: string
+          meta: Json
+          module: string
+          started_at: string
+          subject_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          last_heartbeat_at?: string
+          meta?: Json
+          module?: string
+          started_at?: string
+          subject_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          last_heartbeat_at?: string
+          meta?: Json
+          module?: string
+          started_at?: string
+          subject_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           color: string | null
           description: string | null
           icon: string | null
           id: string
-          level: string
+          level: string | null
           name: string
           slug: string
           sort_order: number
@@ -1373,7 +1510,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
-          level?: string
+          level?: string | null
           name: string
           slug: string
           sort_order?: number
@@ -1385,7 +1522,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
-          level?: string
+          level?: string | null
           name?: string
           slug?: string
           sort_order?: number
