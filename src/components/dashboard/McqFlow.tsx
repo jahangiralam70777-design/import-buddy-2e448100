@@ -1146,13 +1146,14 @@ export function McqFlow() {
                         ) : !isLastBatch ? (
                           <button
                             onClick={() => finishPractice({ finalize: false })}
-                            disabled={saving || !allSubmitted}
+                            disabled={!allSubmitted}
                             className="bg-cta-gradient inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-                            title={allSubmitted ? "Save batch and load next 25" : `Answer all ${total} questions in this batch first`}
+                            title={allSubmitted ? "Load next 25 questions" : `Answer all ${total} questions in this batch first`}
                           >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                            {saving ? "Saving…" : allSubmitted ? `Next Batch (${safeBatchIndex + 2}/${numBatches})` : `Batch ${stats.submitted}/${total}`}
+                            <ArrowRight className="h-4 w-4" />
+                            {allSubmitted ? `Next Batch (${safeBatchIndex + 2}/${numBatches})` : `Batch ${stats.submitted}/${total}`}
                           </button>
+
                         ) : (
                           <button
                             onClick={() => finishPractice({ finalize: true })}
