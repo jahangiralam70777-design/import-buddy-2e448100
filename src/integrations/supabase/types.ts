@@ -180,7 +180,7 @@ export type Database = {
           created_at?: string
           duration_seconds?: number
           id?: string
-          kind: string
+          kind?: string
           level?: string | null
           meta?: Json
           quiz_id?: string | null
@@ -414,6 +414,7 @@ export type Database = {
         Row: {
           chapter_id: string | null
           created_at: string
+          id: string
           level: string | null
           mcq_id: string
           subject_id: string | null
@@ -422,6 +423,7 @@ export type Database = {
         Insert: {
           chapter_id?: string | null
           created_at?: string
+          id?: string
           level?: string | null
           mcq_id: string
           subject_id?: string | null
@@ -430,6 +432,7 @@ export type Database = {
         Update: {
           chapter_id?: string | null
           created_at?: string
+          id?: string
           level?: string | null
           mcq_id?: string
           subject_id?: string | null
@@ -503,6 +506,7 @@ export type Database = {
           chapter_id: string | null
           correct_option: Database["public"]["Enums"]["mcq_option"] | null
           created_at: string
+          id: string
           last_chosen_option: Database["public"]["Enums"]["mcq_option"] | null
           last_wrong_at: string
           level: string | null
@@ -516,6 +520,7 @@ export type Database = {
           chapter_id?: string | null
           correct_option?: Database["public"]["Enums"]["mcq_option"] | null
           created_at?: string
+          id?: string
           last_chosen_option?: Database["public"]["Enums"]["mcq_option"] | null
           last_wrong_at?: string
           level?: string | null
@@ -529,6 +534,7 @@ export type Database = {
           chapter_id?: string | null
           correct_option?: Database["public"]["Enums"]["mcq_option"] | null
           created_at?: string
+          id?: string
           last_chosen_option?: Database["public"]["Enums"]["mcq_option"] | null
           last_wrong_at?: string
           level?: string | null
@@ -732,6 +738,7 @@ export type Database = {
           delivered_count: number
           id: string
           link: string | null
+          open_count: number
           priority: string
           scheduled_at: string | null
           sent_at: string | null
@@ -752,6 +759,7 @@ export type Database = {
           delivered_count?: number
           id?: string
           link?: string | null
+          open_count?: number
           priority?: string
           scheduled_at?: string | null
           sent_at?: string | null
@@ -772,6 +780,7 @@ export type Database = {
           delivered_count?: number
           id?: string
           link?: string | null
+          open_count?: number
           priority?: string
           scheduled_at?: string | null
           sent_at?: string | null
@@ -787,27 +796,45 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          deleted_at: string | null
           display_name: string | null
           id: string
+          last_login_at: string | null
           level: string | null
+          referral_source: string | null
+          status: string
+          total_login_count: number
+          total_usage_seconds: number
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name?: string | null
           id: string
+          last_login_at?: string | null
           level?: string | null
+          referral_source?: string | null
+          status?: string
+          total_login_count?: number
+          total_usage_seconds?: number
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          deleted_at?: string | null
           display_name?: string | null
           id?: string
+          last_login_at?: string | null
           level?: string | null
+          referral_source?: string | null
+          status?: string
+          total_login_count?: number
+          total_usage_seconds?: number
           updated_at?: string
         }
         Relationships: []
@@ -1075,7 +1102,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           kind?: string
-          level: string
+          level?: string
           negative_marking?: number
           passing_marks?: number
           randomize_options?: boolean
@@ -1289,7 +1316,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
-          level: string
+          level?: string
           name: string
           slug: string
           sort_order?: number
@@ -1317,6 +1344,45 @@ export type Database = {
             referencedColumns: ["code"]
           },
         ]
+      }
+      user_login_events: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device: string | null
+          duration_seconds: number | null
+          id: string
+          ip: string | null
+          login_at: string
+          logout_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip?: string | null
+          login_at?: string
+          logout_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip?: string | null
+          login_at?: string
+          logout_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -1497,6 +1563,20 @@ export type Database = {
           table_name: string
         }[]
       }
+      admin_hard_delete_user: { Args: { _id: string }; Returns: undefined }
+      admin_restore_user: { Args: { _id: string }; Returns: undefined }
+      admin_soft_delete_user: { Args: { _id: string }; Returns: undefined }
+      admin_top_users: {
+        Args: { _limit?: number; _order?: string }
+        Returns: {
+          display_name: string
+          last_login_at: string
+          total_login_count: number
+          total_usage_seconds: number
+          user_id: string
+        }[]
+      }
+      admin_user_analytics: { Args: never; Returns: Json }
       claim_user_session: {
         Args: { _session_id: string; _user_agent?: string }
         Returns: {
@@ -1521,7 +1601,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "student"
       content_status: "draft" | "published" | "archived"
       difficulty_level: "easy" | "medium" | "hard"
       mcq_option: "A" | "B" | "C" | "D"
@@ -1652,7 +1732,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "student"],
       content_status: ["draft", "published", "archived"],
       difficulty_level: ["easy", "medium", "hard"],
       mcq_option: ["A", "B", "C", "D"],
