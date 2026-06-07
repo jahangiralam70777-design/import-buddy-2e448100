@@ -497,6 +497,15 @@ export function McqFlow() {
       setFinished(true);
       setReviewMode(false);
     }
+
+    // Advance to the next batch IMMEDIATELY so the UI never gets stuck on a
+    // slow/failing save. The DB save below runs in the background and does
+    // not block pagination. For the final batch (finalize=true) we keep the
+    // user on the results screen.
+    if (!finalize && safeBatchIndex < numBatches - 1) {
+      gotoBatch(safeBatchIndex + 1);
+    }
+
     setSaving(true);
 
     // Ensure answer record for every question in this batch (missing = skipped)
@@ -572,11 +581,6 @@ export function McqFlow() {
       debugMcq("DB save failed", e);
     } finally {
       setSaving(false);
-    }
-
-    // After a non-final batch saves, roll forward to the next batch.
-    if (!finalize && safeBatchIndex < numBatches - 1) {
-      gotoBatch(safeBatchIndex + 1);
     }
   }, [allAnswers, batchEnd, batchStart, chapterId, chapterName, current, finished, isLastBatch, level, mcqs, numBatches, qc, recordOutcomesFn, safeBatchIndex, saveAttemptFn, savedAttemptId, saving, sessionStart, subjectId, total, totalAll]);
 
