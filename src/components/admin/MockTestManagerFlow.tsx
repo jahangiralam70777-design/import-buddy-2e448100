@@ -35,6 +35,7 @@ import {
   adminListChaptersBySubject,
   adminListMcqsForBuilder,
   adminListMocks,
+  adminMockStats,
   adminCreateMock,
   adminUpdateMock,
   adminDeleteMock,
@@ -159,8 +160,18 @@ export function MockTestManagerFlow() {
   const total = mocksQ.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Full-dataset KPI stats (not limited to current page).
+  const statsQ = useQuery({
+    queryKey: ["admin-mock-stats"],
+    queryFn: () => adminMockStats(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["admin-mocks"] });
+    qc.invalidateQueries({ queryKey: ["admin-mock-stats"] });
   }
 
   useEffect(() => {
@@ -221,23 +232,20 @@ export function MockTestManagerFlow() {
   }
 
 
-  // Stats from data
+  // KPIs use full-dataset counts from the server (not just the current page).
   const stats = useMemo(() => {
-    const now = Date.now();
-    const published = rows.filter((r) => r.status === "published").length;
-    const drafts = rows.filter((r) => r.status === "draft").length;
-    const archived = rows.filter((r) => r.status === "archived").length;
-    const scheduled = rows.filter((r) => r.starts_at && new Date(r.starts_at).getTime() > now).length;
-    const live = rows.filter((r) => {
-      if (r.status !== "published") return false;
-      const s = r.starts_at ? new Date(r.starts_at).getTime() : 0;
-      const e = r.ends_at ? new Date(r.ends_at).getTime() : Infinity;
-      return s <= now && now <= e;
-    }).length;
-    const totalQuestions = rows.reduce((sum, r) => sum + (r.total_questions || 0), 0);
-    const avgQuestions = rows.length ? Math.round(totalQuestions / rows.length) : 0;
-    return { total, published, drafts, scheduled, archived, live, totalQuestions, avgQuestions };
-  }, [rows, total]);
+    const s = statsQ.data;
+    return {
+      total: s?.total ?? total,
+      published: s?.published ?? 0,
+      drafts: s?.drafts ?? 0,
+      scheduled: s?.scheduled ?? 0,
+      archived: s?.archived ?? 0,
+      live: s?.live ?? 0,
+      totalQuestions: s?.totalQuestions ?? 0,
+      avgQuestions: s?.avgQuestions ?? 0,
+    };
+  }, [statsQ.data, total]);
 
   // Quick generator form state (wires into existing builder)
   const [qgScope, setQgScope] = useState<"chapter" | "subject" | "level">("subject");

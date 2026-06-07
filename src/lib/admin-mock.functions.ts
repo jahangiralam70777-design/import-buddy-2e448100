@@ -169,6 +169,82 @@ export const adminListMocks = createServerFn({ method: "POST" })
     return { rows: rows ?? [], count: count ?? 0 };
   });
 
+// Full-dataset KPI stats for the Mock Test Manager dashboard.
+// Uses exact-count head queries so values reflect the entire database,
+// not just the currently loaded page of rows.
+export const adminMockStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const sb = context.supabase;
+    const nowIso = new Date().toISOString();
+
+    const base = () => sb.from("quizzes").select("id", { count: "exact", head: true }).eq("kind", "mock");
+
+    const [
+      totalRes,
+      publishedRes,
+      draftsRes,
+      archivedRes,
+      scheduledRes,
+      liveRes,
+      questionsAgg,
+    ] = await Promise.all([
+      base(),
+      base().eq("status", "published"),
+      base().eq("status", "draft"),
+      base().eq("status", "archived"),
+      base().gt("starts_at", nowIso),
+      base()
+        .eq("status", "published")
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`),
+      // Sum + count of total_questions across all mocks (paged to bypass 1000-row cap).
+      (async () => {
+        let from = 0;
+        const pageSize = 1000;
+        let sum = 0;
+        let n = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await sb
+            .from("quizzes")
+            .select("total_questions")
+            .eq("kind", "mock")
+            .range(from, from + pageSize - 1);
+          if (error) throw error;
+          const batch = (data ?? []) as Array<{ total_questions: number | null }>;
+          for (const r of batch) {
+            sum += r.total_questions ?? 0;
+            n += 1;
+          }
+          if (batch.length < pageSize) break;
+          from += pageSize;
+        }
+        return { sum, n };
+      })(),
+    ]);
+
+    for (const r of [totalRes, publishedRes, draftsRes, archivedRes, scheduledRes, liveRes]) {
+      if (r.error) throw r.error;
+    }
+
+    const total = totalRes.count ?? 0;
+    const totalQuestions = questionsAgg.sum;
+    const avgQuestions = questionsAgg.n ? Math.round(totalQuestions / questionsAgg.n) : 0;
+
+    return {
+      total,
+      published: publishedRes.count ?? 0,
+      drafts: draftsRes.count ?? 0,
+      archived: archivedRes.count ?? 0,
+      scheduled: scheduledRes.count ?? 0,
+      live: liveRes.count ?? 0,
+      totalQuestions,
+      avgQuestions,
+    };
+  });
+
 const mockInputSchema = z.object({
   title: z.string().trim().min(2).max(200),
   description: z.string().trim().max(2000).nullable().optional(),
