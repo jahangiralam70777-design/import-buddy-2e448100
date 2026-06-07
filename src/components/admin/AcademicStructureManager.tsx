@@ -759,8 +759,8 @@ function Donut({ size = 130, thickness = 16, segments }: { size?: number; thickn
   );
 }
 
-function ContentActivityCard({ mcqs, chapters, quizzes, mocks }: { mcqs: number; chapters: number; quizzes: number; mocks: number }) {
-  const total = mcqs + chapters + quizzes + mocks;
+function ContentActivityCard({ mcqs, chapters, quizzes, mocks, totalContent }: { mcqs: number; chapters: number; quizzes: number; mocks: number; totalContent?: number }) {
+  const total = totalContent ?? (mcqs + chapters + quizzes + mocks);
   const segs = [
     { value: mcqs, color: "#a855f7", label: "MCQs" },
     { value: chapters, color: "#3b82f6", label: "Chapters" },
