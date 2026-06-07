@@ -16,6 +16,34 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || `item-${Date.now()}`;
 }
 
+async function fetchAllRows<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  table: string,
+  selectClause: string,
+  pageSize = 1000,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(selectClause)
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    const batch = (data ?? []) as T[];
+    rows.push(...batch);
+
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 // ============================================================
 // TREE — single fetch to drive the whole Academic Manager UI
 // ============================================================
@@ -24,38 +52,30 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const sb = context.supabase;
-    const [levelsRes, subjectsRes, chaptersRes, mcqRes, quizRes] = await Promise.all([
+    const [levelsRes, subjectsRes, chaptersRes, mcqs, quizzes] = await Promise.all([
       sb.from("levels").select("*").order("sort_order", { ascending: true }),
       sb.from("subjects").select("id,name,slug,level,color,icon,description,status,sort_order,updated_at").order("sort_order", { ascending: true }),
       sb.from("chapters").select("id,name,slug,subject_id,description,status,sort_order,updated_at").order("sort_order", { ascending: true }),
-      sb.from("mcqs").select("id,chapter_id,status"),
-      sb.from("quizzes").select("id,subject_id,chapter_id,kind,status"),
+      fetchAllRows<Mcq>(sb, "mcqs", "id,chapter_id,status"),
+      fetchAllRows<Qz>(sb, "quizzes", "id,subject_id,chapter_id,kind,status"),
     ]);
     if (levelsRes.error) throw levelsRes.error;
     if (subjectsRes.error) throw subjectsRes.error;
     if (chaptersRes.error) throw chaptersRes.error;
-    if (mcqRes.error) throw mcqRes.error;
-    if (quizRes.error) throw quizRes.error;
 
     type Mcq = { id: string; chapter_id: string; status: string };
     type Qz = { id: string; subject_id: string | null; chapter_id: string | null; kind: string; status: string };
 
     const mcqByChapter = new Map<string, number>();
-    for (const m of (mcqRes.data ?? []) as Mcq[]) {
+    for (const m of mcqs) {
       mcqByChapter.set(m.chapter_id, (mcqByChapter.get(m.chapter_id) ?? 0) + 1);
     }
     const quizByChapter = new Map<string, number>();
     const mockByChapter = new Map<string, number>();
-    const quizBySubject = new Map<string, number>();
-    const mockBySubject = new Map<string, number>();
-    for (const q of (quizRes.data ?? []) as Qz[]) {
+    for (const q of quizzes) {
       if (q.chapter_id) {
         if (q.kind === "mock") mockByChapter.set(q.chapter_id, (mockByChapter.get(q.chapter_id) ?? 0) + 1);
         else quizByChapter.set(q.chapter_id, (quizByChapter.get(q.chapter_id) ?? 0) + 1);
-      }
-      if (q.subject_id) {
-        if (q.kind === "mock") mockBySubject.set(q.subject_id, (mockBySubject.get(q.subject_id) ?? 0) + 1);
-        else quizBySubject.set(q.subject_id, (quizBySubject.get(q.subject_id) ?? 0) + 1);
       }
     }
 
@@ -67,8 +87,6 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
         mcqByChapter: Object.fromEntries(mcqByChapter),
         quizByChapter: Object.fromEntries(quizByChapter),
         mockByChapter: Object.fromEntries(mockByChapter),
-        quizBySubject: Object.fromEntries(quizBySubject),
-        mockBySubject: Object.fromEntries(mockBySubject),
       },
     };
   });
