@@ -206,6 +206,7 @@ export function AcademicStructureManager() {
   const chapters: Chapter[] = tree.data?.chapters ?? [];
   const counts: CountMaps = tree.data?.counts ?? EMPTY_COUNTS;
   const overview: OverviewStats = tree.data?.overview ?? EMPTY_OVERVIEW;
+  const validation = tree.data?.validation;
 
   const perSubject = analytics.data?.perSubject ?? {};
   const perChapter = analytics.data?.perChapter ?? {};
@@ -213,6 +214,12 @@ export function AcademicStructureManager() {
   const series = analytics.data?.series ?? [];
   const recent = analytics.data?.recent ?? [];
   const lastEventAt = analytics.data?.health.lastEventAt ?? null;
+
+  useEffect(() => {
+    if (!validation) return;
+    const mismatches = Object.values(validation.mismatches ?? {}).some((value) => value !== 0);
+    if (mismatches) console.warn("Academic Manager count validation mismatch", validation);
+  }, [validation]);
 
   const activeLevel = selectedLevel ?? levels[0]?.code ?? null;
   const filteredSubjects = useMemo(() => {
