@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: edumaster-web
+    runtime: node
+    plan: starter
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node dist/server/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=4096
+      - key: GENERATE_SOURCEMAP
+        value: "false"
+      - key: PORT
+        value: 10000
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LOVABLE_API_KEY
+        sync: false
