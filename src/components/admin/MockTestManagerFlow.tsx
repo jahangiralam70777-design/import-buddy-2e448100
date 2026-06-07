@@ -160,8 +160,18 @@ export function MockTestManagerFlow() {
   const total = mocksQ.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Full-dataset KPI stats (not limited to current page).
+  const statsQ = useQuery({
+    queryKey: ["admin-mock-stats"],
+    queryFn: () => adminMockStats(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["admin-mocks"] });
+    qc.invalidateQueries({ queryKey: ["admin-mock-stats"] });
   }
 
   useEffect(() => {
