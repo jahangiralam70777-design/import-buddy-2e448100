@@ -458,10 +458,12 @@ export function MockTestManagerFlow() {
                 </div>
               </div>
               <Button
-                onClick={() => openBuilder(qgScope === "subject" ? "full" : qgScope === "level" ? "level" : "chapter")}
+                onClick={() => autoGenMut.mutate({ questionCount: qgQuestions, durationMinutes: qgDuration })}
+                disabled={autoGenMut.isPending}
                 className="bg-cta-gradient h-10 rounded-xl px-5 text-white shadow-glow"
               >
-                <Sparkles className="h-4 w-4" /> Generate Mock Test
+                {autoGenMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {autoGenMut.isPending ? "Generating…" : "Generate Mock Test"}
               </Button>
             </div>
           </div>
