@@ -135,13 +135,6 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
       if (q.chapter_id) chapterIds.add(q.chapter_id);
       for (const chapterId of quizLinkedChapters.get(q.id) ?? []) chapterIds.add(chapterId);
 
-      const subjectIds = new Set<string>();
-      if (q.subject_id) subjectIds.add(q.subject_id);
-      for (const chapterId of chapterIds) {
-        const subjectId = chapterToSubject.get(chapterId);
-        if (subjectId) subjectIds.add(subjectId);
-      }
-
       const chapterTarget = q.kind === "mock" ? mockByChapter : quizByChapter;
       const subjectTarget = q.kind === "mock" ? mockBySubject : quizBySubject;
 
@@ -149,8 +142,8 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
         chapterTarget.set(chapterId, (chapterTarget.get(chapterId) ?? 0) + 1);
       }
 
-      for (const subjectId of subjectIds) {
-        subjectTarget.set(subjectId, (subjectTarget.get(subjectId) ?? 0) + 1);
+      if (chapterIds.size === 0 && q.subject_id) {
+        subjectTarget.set(q.subject_id, (subjectTarget.get(q.subject_id) ?? 0) + 1);
       }
     }
 
