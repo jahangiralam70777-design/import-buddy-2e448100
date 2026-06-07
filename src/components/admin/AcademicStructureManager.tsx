@@ -319,6 +319,7 @@ export function AcademicStructureManager() {
               type="button"
               title="Notifications"
               aria-label="Notifications"
+              onClick={() => { window.location.href = "/admin/notifications"; }}
               className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-card/50 text-muted-foreground transition-all hover:scale-105 hover:bg-muted hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
