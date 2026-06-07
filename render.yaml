@@ -3,7 +3,7 @@ services:
     name: edumaster-web
     runtime: node
     plan: starter
-    buildCommand: npm install --include=dev && NITRO_PRESET=node-server npm run build
+    buildCommand: npm install --include=dev && npm run build:render
     startCommand: node dist/server/index.mjs
     envVars:
       - key: NODE_VERSION
@@ -14,9 +14,6 @@ services:
         value: "false"
       - key: PORT
         value: 10000
-      # Force a Node-server build instead of the default Cloudflare Worker bundle.
-      - key: NITRO_PRESET
-        value: node-server
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
