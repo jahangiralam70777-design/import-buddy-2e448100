@@ -44,6 +44,28 @@ async function fetchAllRows<T>(
   return rows;
 }
 
+async function fetchAllWithQuery<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buildQuery: (from: number, to: number) => any,
+  pageSize = 1000,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery(from, from + pageSize - 1);
+    if (error) throw error;
+
+    const batch = (data ?? []) as T[];
+    rows.push(...batch);
+
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 // ============================================================
 // TREE — single fetch to drive the whole Academic Manager UI
 // ============================================================
@@ -72,10 +94,15 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
     }
     const quizByChapter = new Map<string, number>();
     const mockByChapter = new Map<string, number>();
+    const quizBySubject = new Map<string, number>();
+    const mockBySubject = new Map<string, number>();
     for (const q of quizzes) {
       if (q.chapter_id) {
         if (q.kind === "mock") mockByChapter.set(q.chapter_id, (mockByChapter.get(q.chapter_id) ?? 0) + 1);
         else quizByChapter.set(q.chapter_id, (quizByChapter.get(q.chapter_id) ?? 0) + 1);
+      } else if (q.subject_id) {
+        if (q.kind === "mock") mockBySubject.set(q.subject_id, (mockBySubject.get(q.subject_id) ?? 0) + 1);
+        else quizBySubject.set(q.subject_id, (quizBySubject.get(q.subject_id) ?? 0) + 1);
       }
     }
 
@@ -87,6 +114,8 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
         mcqByChapter: Object.fromEntries(mcqByChapter),
         quizByChapter: Object.fromEntries(quizByChapter),
         mockByChapter: Object.fromEntries(mockByChapter),
+        quizBySubject: Object.fromEntries(quizBySubject),
+        mockBySubject: Object.fromEntries(mockBySubject),
       },
     };
   });
@@ -304,11 +333,13 @@ export const adminAcademicAnalytics = createServerFn({ method: "POST" })
     const now = Date.now();
     const thirty = new Date(now - 30 * 24 * 3600 * 1000).toISOString();
 
-    const [eventsRes, recentRes, notesRes, flashRes, lastRes] = await Promise.all([
-      sb.from("activity_events")
-        .select("module, target_kind, target_id, user_id, created_at")
-        .gte("created_at", thirty)
-        .limit(20000),
+    const [events, recentRes, notesRes, flashRes, lastRes] = await Promise.all([
+      fetchAllWithQuery<Ev>((from, to) =>
+        sb.from("activity_events")
+          .select("module, target_kind, target_id, user_id, created_at")
+          .gte("created_at", thirty)
+          .range(from, to),
+      ),
       sb.from("activity_events")
         .select("id, event_type, element_label, module, target_kind, target_id, user_id, created_at")
         .in("module", ["academic", "mcq", "quiz", "mock", "flash_cards", "short_notes"])
@@ -318,10 +349,7 @@ export const adminAcademicAnalytics = createServerFn({ method: "POST" })
       sb.from("flash_cards").select("id", { count: "exact", head: true }),
       sb.from("activity_events").select("created_at").order("created_at", { ascending: false }).limit(1),
     ]);
-    if (eventsRes.error) throw eventsRes.error;
-
     type Ev = { module: string | null; target_kind: string | null; target_id: string | null; user_id: string | null; created_at: string };
-    const events = (eventsRes.data ?? []) as Ev[];
 
     const subjViews = new Map<string, number>();
     const subjUsers = new Map<string, Set<string>>();
