@@ -102,6 +102,22 @@ type Chapter = {
   status: "draft" | "published" | "archived";
 };
 
+type CountMaps = {
+  mcqByChapter: Record<string, number>;
+  quizByChapter: Record<string, number>;
+  mockByChapter: Record<string, number>;
+  quizBySubject: Record<string, number>;
+  mockBySubject: Record<string, number>;
+};
+
+const EMPTY_COUNTS: CountMaps = {
+  mcqByChapter: {},
+  quizByChapter: {},
+  mockByChapter: {},
+  quizBySubject: {},
+  mockBySubject: {},
+};
+
 type DialogState =
   | { kind: "none" }
   | { kind: "level"; mode: "create" | "edit"; data?: Level }
@@ -130,7 +146,9 @@ export function AcademicStructureManager() {
   const analytics = useQuery({
     queryKey: ["admin-academic-analytics"],
     queryFn: () => fetchAnalytics(),
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Realtime: refresh tree on any related change
@@ -142,8 +160,16 @@ export function AcademicStructureManager() {
       .on("postgres_changes", { event: "*", schema: "public", table: "chapters" }, () => qc.invalidateQueries({ queryKey: ["admin-academic-tree"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "mcqs" }, () => {
         qc.invalidateQueries({ queryKey: ["admin-academic-tree"] });
+        qc.invalidateQueries({ queryKey: ["admin-academic-analytics"] });
         qc.invalidateQueries({ queryKey: ["academic-chapter-mcqs"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quizzes" }, () => {
+        qc.invalidateQueries({ queryKey: ["admin-academic-tree"] });
+        qc.invalidateQueries({ queryKey: ["admin-academic-analytics"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "short_notes" }, () => qc.invalidateQueries({ queryKey: ["admin-academic-analytics"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "flash_cards" }, () => qc.invalidateQueries({ queryKey: ["admin-academic-analytics"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "activity_events" }, () => qc.invalidateQueries({ queryKey: ["admin-academic-analytics"] }))
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, [qc]);
@@ -156,13 +182,7 @@ export function AcademicStructureManager() {
   const levels: Level[] = tree.data?.levels ?? [];
   const subjects: Subject[] = tree.data?.subjects ?? [];
   const chapters: Chapter[] = tree.data?.chapters ?? [];
-  const counts = tree.data?.counts ?? {
-    mcqByChapter: {},
-    quizByChapter: {},
-    mockByChapter: {},
-    quizBySubject: {},
-    mockBySubject: {},
-  };
+  const counts: CountMaps = tree.data?.counts ?? EMPTY_COUNTS;
 
   const perSubject = analytics.data?.perSubject ?? {};
   const perChapter = analytics.data?.perChapter ?? {};
