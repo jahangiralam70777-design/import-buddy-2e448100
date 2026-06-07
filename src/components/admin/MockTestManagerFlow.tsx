@@ -35,6 +35,7 @@ import {
   adminListChaptersBySubject,
   adminListMcqsForBuilder,
   adminListMocks,
+  adminMockStats,
   adminCreateMock,
   adminUpdateMock,
   adminDeleteMock,
