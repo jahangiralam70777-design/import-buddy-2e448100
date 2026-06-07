@@ -217,6 +217,17 @@ export function MockTestManagerFlow() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const autoGenFn = useServerFn(adminAutoGenerateMock);
+  const autoGenMut = useMutation({
+    mutationFn: (vars: { questionCount: number; durationMinutes: number }) =>
+      autoGenFn({ data: vars }),
+    onSuccess: (res) => {
+      toast.success(`Mock generated: ${res.questionCount} questions`);
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message || "Auto-generation failed"),
+  });
+
   const [editing, setEditing] = useState<Mock | null>(null);
   const [creating, setCreating] = useState(false);
   const [builderPreset, setBuilderPreset] = useState<"blank" | "generate" | "full" | "chapter" | "level">("blank");
