@@ -42,6 +42,7 @@ import {
   adminSetMockStatus,
   adminDuplicateMock,
   adminGetMockQuestions,
+  adminAutoGenerateMock,
 } from "@/lib/admin-mock.functions";
 
 type Level = string;
@@ -214,6 +215,17 @@ export function MockTestManagerFlow() {
     mutationFn: (id: string) => duplicateFn({ data: { id } }),
     onSuccess: () => { toast.success("Mock duplicated"); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const autoGenFn = useServerFn(adminAutoGenerateMock);
+  const autoGenMut = useMutation({
+    mutationFn: (vars: { questionCount: number; durationMinutes: number }) =>
+      autoGenFn({ data: vars }),
+    onSuccess: (res) => {
+      toast.success(`Mock generated: ${res.questionCount} questions`);
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message || "Auto-generation failed"),
   });
 
   const [editing, setEditing] = useState<Mock | null>(null);
@@ -446,10 +458,12 @@ export function MockTestManagerFlow() {
                 </div>
               </div>
               <Button
-                onClick={() => openBuilder(qgScope === "subject" ? "full" : qgScope === "level" ? "level" : "chapter")}
+                onClick={() => autoGenMut.mutate({ questionCount: qgQuestions, durationMinutes: qgDuration })}
+                disabled={autoGenMut.isPending}
                 className="bg-cta-gradient h-10 rounded-xl px-5 text-white shadow-glow"
               >
-                <Sparkles className="h-4 w-4" /> Generate Mock Test
+                {autoGenMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {autoGenMut.isPending ? "Generating…" : "Generate Mock Test"}
               </Button>
             </div>
           </div>

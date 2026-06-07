@@ -372,3 +372,151 @@ export const adminGetMockQuestions = createServerFn({ method: "POST" })
     if (error) throw error;
     return (rows ?? []).map((r: { mcq_id: string }) => r.mcq_id);
   });
+
+// ---------- Auto-generate a mock test (fully automatic) ----------
+// Picks a chapter with the most published MCQs, randomly samples a balanced
+// set across difficulties, and creates a published mock immediately.
+export const adminAutoGenerateMock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: { questionCount?: number; durationMinutes?: number }) =>
+    z
+      .object({
+        questionCount: z.number().int().min(5).max(200).default(20),
+        durationMinutes: z.number().int().min(1).max(480).optional(),
+      })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const sb = context.supabase;
+
+    // 1) Fetch published MCQs (paged to bypass 1000 row cap).
+    type McqRow = { id: string; chapter_id: string; difficulty: "easy" | "medium" | "hard" };
+    const mcqs: McqRow[] = [];
+    {
+      let from = 0;
+      const pageSize = 1000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: batch, error } = await sb
+          .from("mcqs")
+          .select("id,chapter_id,difficulty")
+          .eq("status", "published")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const rows = (batch ?? []) as McqRow[];
+        mcqs.push(...rows);
+        if (rows.length < pageSize) break;
+        from += pageSize;
+      }
+    }
+    if (mcqs.length === 0) {
+      throw new Error("No published MCQs available to generate a mock test from.");
+    }
+
+    // 2) Group by chapter; pick the chapter with the most MCQs.
+    const byChapter = new Map<string, McqRow[]>();
+    for (const m of mcqs) {
+      if (!m.chapter_id) continue;
+      const arr = byChapter.get(m.chapter_id) ?? [];
+      arr.push(m);
+      byChapter.set(m.chapter_id, arr);
+    }
+    if (byChapter.size === 0) {
+      throw new Error("No MCQs are linked to a chapter — cannot auto-generate.");
+    }
+    const sorted = [...byChapter.entries()].sort((a, b) => b[1].length - a[1].length);
+    const [chapterId, chapterMcqs] = sorted[0];
+
+    // 3) Resolve chapter -> subject -> level.
+    const { data: chapter, error: chErr } = await sb
+      .from("chapters")
+      .select("id,name,subject_id")
+      .eq("id", chapterId)
+      .single();
+    if (chErr || !chapter) throw chErr ?? new Error("Chapter not found");
+    const { data: subject, error: sErr } = await sb
+      .from("subjects")
+      .select("id,name,level")
+      .eq("id", chapter.subject_id)
+      .single();
+    if (sErr || !subject) throw sErr ?? new Error("Subject not found");
+    const level = (subject.level && subject.level.length > 0 ? subject.level : "professional") as string;
+
+    // 4) Balanced selection across difficulties (~30/40/30 of available).
+    const target = Math.min(data.questionCount, chapterMcqs.length);
+    const easyTarget = Math.round(target * 0.3);
+    const medTarget = Math.round(target * 0.4);
+    const hardTarget = target - easyTarget - medTarget;
+    const buckets: Record<"easy" | "medium" | "hard", McqRow[]> = { easy: [], medium: [], hard: [] };
+    for (const m of chapterMcqs) (buckets[m.difficulty] ?? buckets.medium).push(m);
+    const shuffle = <T,>(arr: T[]) => arr.slice().sort(() => Math.random() - 0.5);
+    const picked = new Set<string>();
+    const pickFrom = (pool: McqRow[], n: number) => {
+      let need = n;
+      for (const m of shuffle(pool)) {
+        if (picked.size >= target || need <= 0) break;
+        if (picked.has(m.id)) continue;
+        picked.add(m.id);
+        need -= 1;
+      }
+    };
+    pickFrom(buckets.easy, easyTarget);
+    pickFrom(buckets.medium, medTarget);
+    pickFrom(buckets.hard, hardTarget);
+    if (picked.size < target) pickFrom(chapterMcqs, target - picked.size);
+
+    const mcqIds = shuffle([...picked]);
+    if (mcqIds.length === 0) throw new Error("Failed to select MCQs for the mock test.");
+
+    // 5) Duration: configured or auto (~60s per question, clamped 5-180 min).
+    const durationSeconds = data.durationMinutes
+      ? data.durationMinutes * 60
+      : Math.max(5 * 60, Math.min(180 * 60, mcqIds.length * 60));
+
+    const stamp = new Date();
+    const title = `Auto Mock · ${subject.name} — ${chapter.name} (${stamp.toLocaleDateString()} ${stamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+
+    // 6) Create the mock row.
+    const { data: quizRow, error: qErr } = await sb
+      .from("quizzes")
+      .insert({
+        kind: "mock",
+        title,
+        description: `Auto-generated mock with ${mcqIds.length} questions from ${subject.name} — ${chapter.name}.`,
+        level,
+        subject_id: subject.id,
+        chapter_id: chapter.id,
+        duration_seconds: durationSeconds,
+        total_questions: mcqIds.length,
+        difficulty: "medium",
+        status: "published",
+        is_public: true,
+        randomize_questions: true,
+        randomize_options: false,
+        negative_marking: 0,
+        passing_marks: 0,
+        created_by: context.userId,
+      })
+      .select("id")
+      .single();
+    if (qErr || !quizRow) throw qErr ?? new Error("Failed to create mock");
+
+    // 7) Link questions.
+    const links = mcqIds.map((mcq_id, i) => ({ quiz_id: quizRow.id, mcq_id, position: i }));
+    const { error: linkErr } = await sb.from("quiz_questions").insert(links);
+    if (linkErr) {
+      await sb.from("quizzes").delete().eq("id", quizRow.id);
+      throw linkErr;
+    }
+
+    return {
+      id: quizRow.id,
+      title,
+      level,
+      subjectId: subject.id,
+      chapterId: chapter.id,
+      questionCount: mcqIds.length,
+      durationSeconds,
+    };
+  });
