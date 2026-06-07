@@ -110,12 +110,34 @@ type CountMaps = {
   mockBySubject: Record<string, number>;
 };
 
+type OverviewStats = {
+  subjects: number;
+  chapters: number;
+  mcqs: number;
+  quizzes: number;
+  mocks: number;
+  notes: number;
+  flashCards: number;
+  totalContent: number;
+};
+
 const EMPTY_COUNTS: CountMaps = {
   mcqByChapter: {},
   quizByChapter: {},
   mockByChapter: {},
   quizBySubject: {},
   mockBySubject: {},
+};
+
+const EMPTY_OVERVIEW: OverviewStats = {
+  subjects: 0,
+  chapters: 0,
+  mcqs: 0,
+  quizzes: 0,
+  mocks: 0,
+  notes: 0,
+  flashCards: 0,
+  totalContent: 0,
 };
 
 type DialogState =
@@ -183,6 +205,7 @@ export function AcademicStructureManager() {
   const subjects: Subject[] = tree.data?.subjects ?? [];
   const chapters: Chapter[] = tree.data?.chapters ?? [];
   const counts: CountMaps = tree.data?.counts ?? EMPTY_COUNTS;
+  const overview: OverviewStats = tree.data?.overview ?? EMPTY_OVERVIEW;
 
   const perSubject = analytics.data?.perSubject ?? {};
   const perChapter = analytics.data?.perChapter ?? {};
@@ -243,12 +266,12 @@ export function AcademicStructureManager() {
     Object.values(m).reduce((a, b) => a + b, 0);
   const totals = useMemo(
     () => ({
-      chapters: chapters.length,
-      mcqs: sumValues(counts.mcqByChapter),
-      quizzes: sumValues(counts.quizByChapter) + sumValues(counts.quizBySubject),
-      mocks: sumValues(counts.mockByChapter) + sumValues(counts.mockBySubject),
+      chapters: overview.chapters,
+      mcqs: overview.mcqs,
+      quizzes: overview.quizzes,
+      mocks: overview.mocks,
     }),
-    [chapters, counts],
+    [overview],
   );
 
   // ---- Per-subject roll-up for premium subject cards ----
@@ -369,17 +392,18 @@ export function AcademicStructureManager() {
       {/* Top dashboard row: Overview Summary · Content & Activity · System Health */}
       <div className="grid gap-3 lg:grid-cols-3">
         <OverviewSummaryCard
-          subjects={subjects.length}
-          chapters={chapters.length}
+          subjects={overview.subjects}
+          chapters={overview.chapters}
           mcqs={totals.mcqs}
           quizzes={totals.quizzes}
           mocks={totals.mocks}
         />
         <ContentActivityCard
           mcqs={totals.mcqs}
-          chapters={chapters.length}
+          chapters={overview.chapters}
           quizzes={totals.quizzes}
           mocks={totals.mocks}
+          totalContent={overview.totalContent}
         />
         <SystemHealthCard
           lastEventAt={lastEventAt}
@@ -636,11 +660,11 @@ export function AcademicStructureManager() {
         <TopChaptersCard chapters={chapters} perChapter={perChapter} mcqByChapter={counts.mcqByChapter} />
         <ContentDistributionCard
           mcqs={totals.mcqs}
-          chapters={chapters.length}
+          chapters={overview.chapters}
           quizzes={totals.quizzes}
           mocks={totals.mocks}
-          notes={aTotals.notes}
-          flashCards={aTotals.flashCards}
+          notes={overview.notes}
+          flashCards={overview.flashCards}
         />
         <QuickActionsCard
           onLevel={() => setDialog({ kind: "level", mode: "create" })}
