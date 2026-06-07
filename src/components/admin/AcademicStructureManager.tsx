@@ -181,6 +181,11 @@ export function AcademicStructureManager() {
     else if (statusFilter === "draft") list = list.filter((s) => s.status === "draft");
     else if (statusFilter === "most_viewed") list = [...list].sort((a, b) => (perSubject[b.id]?.views ?? 0) - (perSubject[a.id]?.views ?? 0));
     else if (statusFilter === "most_attempted") list = [...list].sort((a, b) => (perSubject[b.id]?.attempts ?? 0) - (perSubject[a.id]?.attempts ?? 0));
+    else if (statusFilter === "recent") list = [...list].sort((a, b) => {
+      const at = (a as Subject & { updated_at?: string }).updated_at ?? "";
+      const bt = (b as Subject & { updated_at?: string }).updated_at ?? "";
+      return bt.localeCompare(at);
+    });
     return list;
   }, [subjects, activeLevel, search, statusFilter, perSubject]);
 
