@@ -74,48 +74,140 @@ export const adminGetAcademicTree = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
     const sb = context.supabase;
-    const [levelsRes, subjectsRes, chaptersRes, mcqs, quizzes] = await Promise.all([
+    type Mcq = { id: string; chapter_id: string | null; status: string };
+    type Qz = { id: string; subject_id: string | null; chapter_id: string | null; kind: string | null; status: string };
+    type QuizQuestion = { quiz_id: string; mcq_id: string };
+
+    const [levelsRes, subjectsRes, chaptersRes, mcqs, quizzes, quizQuestions, mcqTotalRes, subjectsTotalRes, chaptersTotalRes, quizTotalRes, mockTotalRes, notesTotalRes, flashCardsTotalRes] = await Promise.all([
       sb.from("levels").select("*").order("sort_order", { ascending: true }),
       sb.from("subjects").select("id,name,slug,level,color,icon,description,status,sort_order,updated_at").order("sort_order", { ascending: true }),
       sb.from("chapters").select("id,name,slug,subject_id,description,status,sort_order,updated_at").order("sort_order", { ascending: true }),
       fetchAllRows<Mcq>(sb, "mcqs", "id,chapter_id,status"),
       fetchAllRows<Qz>(sb, "quizzes", "id,subject_id,chapter_id,kind,status"),
+      fetchAllRows<QuizQuestion>(sb, "quiz_questions", "quiz_id,mcq_id"),
+      sb.from("mcqs").select("id", { count: "exact", head: true }),
+      sb.from("subjects").select("id", { count: "exact", head: true }),
+      sb.from("chapters").select("id", { count: "exact", head: true }),
+      sb.from("quizzes").select("id", { count: "exact", head: true }).eq("kind", "quiz"),
+      sb.from("quizzes").select("id", { count: "exact", head: true }).eq("kind", "mock"),
+      sb.from("short_notes").select("id", { count: "exact", head: true }),
+      sb.from("flash_cards").select("id", { count: "exact", head: true }),
     ]);
     if (levelsRes.error) throw levelsRes.error;
     if (subjectsRes.error) throw subjectsRes.error;
     if (chaptersRes.error) throw chaptersRes.error;
 
-    type Mcq = { id: string; chapter_id: string; status: string };
-    type Qz = { id: string; subject_id: string | null; chapter_id: string | null; kind: string; status: string };
+    if (mcqTotalRes.error) throw mcqTotalRes.error;
+    if (subjectsTotalRes.error) throw subjectsTotalRes.error;
+    if (chaptersTotalRes.error) throw chaptersTotalRes.error;
+    if (quizTotalRes.error) throw quizTotalRes.error;
+    if (mockTotalRes.error) throw mockTotalRes.error;
+    if (notesTotalRes.error) throw notesTotalRes.error;
+    if (flashCardsTotalRes.error) throw flashCardsTotalRes.error;
+
+    const subjectsData = subjectsRes.data ?? [];
+    const chaptersData = chaptersRes.data ?? [];
+    const chapterToSubject = new Map(chaptersData.map((chapter) => [chapter.id, chapter.subject_id]));
 
     const mcqByChapter = new Map<string, number>();
+    const mcqChapterById = new Map<string, string>();
     for (const m of mcqs) {
+      if (!m.chapter_id) continue;
+      mcqChapterById.set(m.id, m.chapter_id);
       mcqByChapter.set(m.chapter_id, (mcqByChapter.get(m.chapter_id) ?? 0) + 1);
     }
+
+    const quizLinkedChapters = new Map<string, Set<string>>();
+    for (const link of quizQuestions) {
+      const chapterId = mcqChapterById.get(link.mcq_id);
+      if (!chapterId) continue;
+      if (!quizLinkedChapters.has(link.quiz_id)) quizLinkedChapters.set(link.quiz_id, new Set<string>());
+      quizLinkedChapters.get(link.quiz_id)!.add(chapterId);
+    }
+
     const quizByChapter = new Map<string, number>();
     const mockByChapter = new Map<string, number>();
     const quizBySubject = new Map<string, number>();
     const mockBySubject = new Map<string, number>();
+
     for (const q of quizzes) {
-      if (q.chapter_id) {
-        if (q.kind === "mock") mockByChapter.set(q.chapter_id, (mockByChapter.get(q.chapter_id) ?? 0) + 1);
-        else quizByChapter.set(q.chapter_id, (quizByChapter.get(q.chapter_id) ?? 0) + 1);
-      } else if (q.subject_id) {
-        if (q.kind === "mock") mockBySubject.set(q.subject_id, (mockBySubject.get(q.subject_id) ?? 0) + 1);
-        else quizBySubject.set(q.subject_id, (quizBySubject.get(q.subject_id) ?? 0) + 1);
+      const chapterIds = new Set<string>();
+      if (q.chapter_id) chapterIds.add(q.chapter_id);
+      for (const chapterId of quizLinkedChapters.get(q.id) ?? []) chapterIds.add(chapterId);
+
+      const subjectIds = new Set<string>();
+      if (q.subject_id) subjectIds.add(q.subject_id);
+      for (const chapterId of chapterIds) {
+        const subjectId = chapterToSubject.get(chapterId);
+        if (subjectId) subjectIds.add(subjectId);
+      }
+
+      const chapterTarget = q.kind === "mock" ? mockByChapter : quizByChapter;
+      const subjectTarget = q.kind === "mock" ? mockBySubject : quizBySubject;
+
+      for (const chapterId of chapterIds) {
+        chapterTarget.set(chapterId, (chapterTarget.get(chapterId) ?? 0) + 1);
+      }
+
+      for (const subjectId of subjectIds) {
+        subjectTarget.set(subjectId, (subjectTarget.get(subjectId) ?? 0) + 1);
       }
     }
 
+    const derivedMcqTotal = Array.from(mcqByChapter.values()).reduce((sum, value) => sum + value, 0);
+    const actualMcqTotal = mcqTotalRes.count ?? 0;
+    const actualSubjects = subjectsTotalRes.count ?? subjectsData.length;
+    const actualChapters = chaptersTotalRes.count ?? chaptersData.length;
+    const actualQuizzes = quizTotalRes.count ?? 0;
+    const actualMocks = mockTotalRes.count ?? 0;
+    const actualNotes = notesTotalRes.count ?? 0;
+    const actualFlashCards = flashCardsTotalRes.count ?? 0;
+
     return {
       levels: levelsRes.data ?? [],
-      subjects: subjectsRes.data ?? [],
-      chapters: chaptersRes.data ?? [],
+      subjects: subjectsData,
+      chapters: chaptersData,
       counts: {
         mcqByChapter: Object.fromEntries(mcqByChapter),
         quizByChapter: Object.fromEntries(quizByChapter),
         mockByChapter: Object.fromEntries(mockByChapter),
         quizBySubject: Object.fromEntries(quizBySubject),
         mockBySubject: Object.fromEntries(mockBySubject),
+      },
+      overview: {
+        subjects: actualSubjects,
+        chapters: actualChapters,
+        mcqs: actualMcqTotal,
+        quizzes: actualQuizzes,
+        mocks: actualMocks,
+        notes: actualNotes,
+        flashCards: actualFlashCards,
+        totalContent: actualMcqTotal + actualChapters + actualQuizzes + actualMocks + actualNotes + actualFlashCards,
+      },
+      validation: {
+        checkedAt: new Date().toISOString(),
+        actual: {
+          subjects: actualSubjects,
+          chapters: actualChapters,
+          mcqs: actualMcqTotal,
+          quizzes: actualQuizzes,
+          mocks: actualMocks,
+          totalContent: actualMcqTotal + actualChapters + actualQuizzes + actualMocks + actualNotes + actualFlashCards,
+        },
+        derived: {
+          subjects: subjectsData.length,
+          chapters: chaptersData.length,
+          mcqs: derivedMcqTotal,
+        },
+        mismatches: {
+          subjects: actualSubjects - subjectsData.length,
+          chapters: actualChapters - chaptersData.length,
+          mcqs: actualMcqTotal - derivedMcqTotal,
+        },
+        orphanLinkedContent: {
+          quizzes: quizzes.filter((quiz) => quiz.kind !== "mock" && !(quiz.chapter_id || quiz.subject_id || (quizLinkedChapters.get(quiz.id)?.size ?? 0))).length,
+          mocks: quizzes.filter((quiz) => quiz.kind === "mock" && !(quiz.chapter_id || quiz.subject_id || (quizLinkedChapters.get(quiz.id)?.size ?? 0))).length,
+        },
       },
     };
   });
