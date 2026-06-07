@@ -3,7 +3,7 @@ services:
     name: edumaster-web
     runtime: node
     plan: starter
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm install --include=dev && NITRO_PRESET=node-server npm run build
     startCommand: node dist/server/index.mjs
     envVars:
       - key: NODE_VERSION
