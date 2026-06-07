@@ -1149,8 +1149,9 @@ function EntityDialog({
   // Form state per kind
   const [form, setForm] = useState<Record<string, unknown>>({});
 
-  // Reset form whenever dialog state changes
-  useMemo(() => {
+  // Reset form whenever dialog state changes (must be an effect, not useMemo —
+  // calling setState during render triggers React error #418 and unreliable forms).
+  useEffect(() => {
     if (state.kind === "level") {
       setForm(state.data ? { ...state.data } : { code: "", name: "", color: "#a855f7", icon: "GraduationCap", sort_order: levels.length, status: "published" });
     } else if (state.kind === "subject") {
