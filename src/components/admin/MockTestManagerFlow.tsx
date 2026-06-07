@@ -42,6 +42,7 @@ import {
   adminSetMockStatus,
   adminDuplicateMock,
   adminGetMockQuestions,
+  adminAutoGenerateMock,
 } from "@/lib/admin-mock.functions";
 
 type Level = string;
