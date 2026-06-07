@@ -181,6 +181,11 @@ export function AcademicStructureManager() {
     else if (statusFilter === "draft") list = list.filter((s) => s.status === "draft");
     else if (statusFilter === "most_viewed") list = [...list].sort((a, b) => (perSubject[b.id]?.views ?? 0) - (perSubject[a.id]?.views ?? 0));
     else if (statusFilter === "most_attempted") list = [...list].sort((a, b) => (perSubject[b.id]?.attempts ?? 0) - (perSubject[a.id]?.attempts ?? 0));
+    else if (statusFilter === "recent") list = [...list].sort((a, b) => {
+      const at = (a as Subject & { updated_at?: string }).updated_at ?? "";
+      const bt = (b as Subject & { updated_at?: string }).updated_at ?? "";
+      return bt.localeCompare(at);
+    });
     return list;
   }, [subjects, activeLevel, search, statusFilter, perSubject]);
 
@@ -314,6 +319,7 @@ export function AcademicStructureManager() {
               type="button"
               title="Notifications"
               aria-label="Notifications"
+              onClick={() => { window.location.href = "/admin/notifications"; }}
               className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-card/50 text-muted-foreground transition-all hover:scale-105 hover:bg-muted hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
@@ -1149,8 +1155,9 @@ function EntityDialog({
   // Form state per kind
   const [form, setForm] = useState<Record<string, unknown>>({});
 
-  // Reset form whenever dialog state changes
-  useMemo(() => {
+  // Reset form whenever dialog state changes (must be an effect, not useMemo —
+  // calling setState during render triggers React error #418 and unreliable forms).
+  useEffect(() => {
     if (state.kind === "level") {
       setForm(state.data ? { ...state.data } : { code: "", name: "", color: "#a855f7", icon: "GraduationCap", sort_order: levels.length, status: "published" });
     } else if (state.kind === "subject") {
